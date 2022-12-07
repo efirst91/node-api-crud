@@ -10,10 +10,10 @@ const PeripheralModel = require('../../peripheral-device/domain/peripheral.model
 const getAllGateway = async (req, res) => {
     try {
         const gatewaysAll = await GatewayModel.find().select('-__v');
-        res.status(200).json({data: gatewaysAll, total: gatewaysAll.length});
+        return res.status(200).json({data: gatewaysAll, total: gatewaysAll.length});
 
     } catch (e) {
-        res.status(500).json({error: e.message})
+        return res.status(500).json({error: e.message})
     }
 }
 
@@ -29,7 +29,7 @@ const saveGateway = async (req, res) => {
         const peripheralsDevices = [];
         let newGateway = null;
         if (req.body.peripheralsDevices.length > 10) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'Each gateway can not have more than 10 peripheral devices'
                 }, success: false
@@ -38,12 +38,12 @@ const saveGateway = async (req, res) => {
 
         const validIpv4 = validateIpv4(req.body.ipv4);
         if (!validIpv4) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'Ipv4 not valid, please try to new one'
                 }, success: false
             });
-            return;
+
         }
 
         newGateway = new GatewayModel({
@@ -61,7 +61,7 @@ const saveGateway = async (req, res) => {
             for (const item of peripheralList) {
                 const existPeripheralD = await PeripheralModel.findOne({uid: item.uid, vendor: item.vendor});
                 if (existPeripheralD) {
-                    res.status(400).json({
+                    return res.status(400).json({
                         data: {message: `The peripheral with vendor ${existPeripheralD._id} already exist, please check peripheral list`},
                         success: false
                     });
@@ -81,7 +81,7 @@ const saveGateway = async (req, res) => {
                     peripheralsDevices.push(newPeripheral._id);
 
                 } catch (e) {
-                    res.status(500).json({
+                    return res.status(500).json({
                         data: {
                             message: 'An error has occurred when tying to create an associated peripheral'
                         }, error: e, success: false,
@@ -94,12 +94,12 @@ const saveGateway = async (req, res) => {
         await GatewayModel.updateOne(newGateway, {
             peripheralsDevices
         }).then(() => {
-            res.status(200).json({data: {id: newGateway._id}, success: true});
+            return res.status(200).json({data: {id: newGateway._id}, success: true});
         })
 
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -115,21 +115,21 @@ const getGatewayById = async (req, res) => {
         const gateway = await GatewayModel.findOne({_id: gatewayId}).select('-__v');
 
         if (!gateway) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'This gateway does not exist'
                 }, success: false
             })
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             data: {
                 gateway
             }
         });
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -144,7 +144,7 @@ const deleteGatewayById = async (req, res) => {
         const gatewayId = req.params.id;
         const gateway = await GatewayModel.findOne({_id: gatewayId})
         if (!gateway) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'This gateway does not exist'
                 }, success: false
@@ -153,18 +153,19 @@ const deleteGatewayById = async (req, res) => {
 
 
         if (gateway.peripheralsDevices.length > 0) {
-            const pipheralChilds = await PeripheralModel.find({gatewayId: gatewayId})
+            const pipheralChilds = gateway.peripheralsDevices;
             for (const item of pipheralChilds) {
                 const gatewayId = null;
-                await PeripheralModel.updateOne(item, {
+                const peripheral = await PeripheralModel.findOne({_id: item});
+                await PeripheralModel.updateOne(peripheral, {
                     gatewayId
                 })
             }
         }
-        
+
         await GatewayModel.deleteOne({_id: gatewayId});
 
-        res.status(200).json({
+        return res.status(200).json({
             data: {
                 gatewayId
             }, success: true
@@ -172,7 +173,7 @@ const deleteGatewayById = async (req, res) => {
 
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -188,17 +189,29 @@ const deleteGatewayGroup = async (req, res) => {
         for (const itemId of idsGroup) {
             const gateway = await GatewayModel.findOne({_id: itemId})
             if (!gateway) {
-                res.status(400).json({
+                return res.status(400).json({
                     data: {
                         message: 'This gateway does not exist'
                     }, success: false
                 })
             }
 
+            if (gateway.peripheralsDevices.length > 0) {
+                const peripheralChilds = gateway.peripheralsDevices;
+                for (const item of peripheralChilds) {
+                    const gatewayId = null;
+                    const peripheral = await PeripheralModel.findOne({_id: item});
+
+                    await PeripheralModel.updateOne(peripheral, {
+                        gatewayId
+                    })
+                }
+            }
+
             await GatewayModel.deleteOne({_id: itemId});
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             data: {
                 message: 'All gateways were be deleted successfully'
             }, success: true
@@ -206,7 +219,7 @@ const deleteGatewayGroup = async (req, res) => {
 
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -234,17 +247,16 @@ const updateGateway = async (req, res) => {
 
         const validIpv4 = validateIpv4(req.body.ipv4);
         if (!validIpv4) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'Ipv4 not valid, please try to new one'
                 }, success: false
             });
-            return;
         }
 
         const allPeripheralDevices = gateway?.peripheralsDevices.length + peripheralsDevices.length
         if (allPeripheralDevices > 10) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'Each gateway can not have more than 10 peripheral devices',
                 }, success: false
@@ -300,7 +312,7 @@ const updateGateway = async (req, res) => {
         })
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 

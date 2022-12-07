@@ -10,10 +10,10 @@ const GatewayModel = require("../../gateway/domain/gateway.model");
 const getAllPeripheral = async (req, res) => {
     try {
         const peripheralAll = await PeripheralModel.find().select('-__v');
-        res.status(200).json({data: peripheralAll, total: peripheralAll.length});
+        return res.status(200).json({data: peripheralAll, total: peripheralAll.length});
 
     } catch (e) {
-        res.status(500).json({error: e.message})
+        return res.status(500).json({error: e.message})
     }
 }
 
@@ -35,10 +35,10 @@ const savePeripheral = async (req, res) => {
         });
 
         await newPeripheralD.save();
-        res.status(200).json({data: {id: newPeripheralD._id}, success: true});
+        return res.status(200).json({data: {id: newPeripheralD._id}, success: true});
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -54,12 +54,12 @@ const getPeripheralById = async (req, res) => {
         const peripheral = await PeripheralModel.findOne({_id: peripheralById}).select('-__v');
 
         if (!peripheral) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'This peripheral does not exist'
                 }, success: false
             })
-            return;
+
         }
 
         res.status(200).json({
@@ -69,7 +69,7 @@ const getPeripheralById = async (req, res) => {
         });
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -118,7 +118,7 @@ const deletePeripheralById = async (req, res) => {
 
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -131,20 +131,33 @@ const deletePeripheralById = async (req, res) => {
 const deletePeripheralGroup = async (req, res) => {
     try {
         const idsGroup = req.body;
+        let gateway
         for (const itemId of idsGroup) {
             const peripheral = await PeripheralModel.findOne({_id: itemId})
             if (!peripheral) {
-                res.status(400).json({
+                return res.status(400).json({
                     data: {
                         message: 'This peripheral does not exist'
                     }, success: false
                 })
             }
 
+            gateway = await GatewayModel.findOne({_id: peripheral.gatewayId});
+            if (gateway) {
+                const array = gateway.peripheralsDevices.map(value => value.toString());
+                const indexToDelete = array.findIndex(value => value === itemId);
+                array.splice(indexToDelete, 1);
+                const peripheralsDevices = [...array];
+
+                await GatewayModel.updateOne(gateway, {
+                    peripheralsDevices
+                })
+
+            }
             await PeripheralModel.deleteOne({_id: itemId});
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             data: {
                 message: 'All peripheral were be deleted successfully'
             }, success: true
@@ -152,7 +165,7 @@ const deletePeripheralGroup = async (req, res) => {
 
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
@@ -169,7 +182,7 @@ const updatePeripheral = async (req, res) => {
         const peripheralId = req.params.id;
         const peripheral = await PeripheralModel.findOne({_id: peripheralId})
         if (!peripheral) {
-            res.status(400).json({
+            return res.status(400).json({
                 data: {
                     message: 'This Peripheral does not exist'
                 }, success: false
@@ -179,7 +192,7 @@ const updatePeripheral = async (req, res) => {
         await PeripheralModel.updateOne(peripheral, {
             uid, vendor, status
         }).then(() => {
-            res.status(200).json({
+            return res.status(200).json({
                 data: {
                     peripheralId
                 }, success: true
@@ -187,7 +200,7 @@ const updatePeripheral = async (req, res) => {
         })
 
     } catch (e) {
-        res.status(500).json({error: e.message, success: false})
+        return res.status(500).json({error: e.message, success: false})
     }
 }
 
