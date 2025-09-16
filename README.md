@@ -5,6 +5,7 @@
 
 - Node version <strong style="color: green">14.20.0</strong>
 - Database name <strong style="color: green">test</strong>
+- ODM mogoose
 - Database port by default <strong style="color: green">27017</strong>
 
 # Considerations
