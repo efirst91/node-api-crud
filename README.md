@@ -1,6 +1,5 @@
-# nodeTest
+# Test api with node
 
-node test for musala soft
 
 # Installation
 
